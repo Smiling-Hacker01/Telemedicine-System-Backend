@@ -5,7 +5,25 @@
 
 ---
 
-## 1. Overview of Automated CI/CD Pipeline
+## 1. Multi-Stage Branch Promotion Architecture
+
+In adherence with enterprise release standards, changes progress sequentially across isolated deployment tiers:
+
+```mermaid
+graph LR
+    Dev["fix/* / feature/*"] -->|PR 1: Code Review & CI| Deploy["deploy (Dev Integration)"]
+    Deploy -->|PR 2: Integration Verification| Staging["staging (Pre-Prod / UAT)"]
+    Staging -->|PR 3: Final Production Release| Main["main (Production)"]
+```
+
+1. **Feature / Fix Branches (`feature/*`, `fix/*`):** Short-lived working branches where engineers build and test discrete changes.
+2. **`deploy` Branch:** First deployment tier. Integrates new features and triggers continuous deployment to the development/testing cluster.
+3. **`staging` Branch:** Mirrors production configuration. Used for end-to-end integration tests, load benchmark validation, and stakeholder UAT.
+4. **`main` Branch:** Protected production branch representing the live, audited system. Every merge creates a tagged production release.
+
+---
+
+## 2. Overview of Automated CI/CD Pipeline
 
 The Amrutam engineering workflow enforces continuous integration quality gates on all pull requests and pushes to `main`. Every code change must pass four mandatory pipeline stages before it can be merged into production:
 
