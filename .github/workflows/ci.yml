@@ -2,7 +2,7 @@ name: CI / CD Quality Pipeline
 
 on:
   push:
-    branches: [main, develop, 'feature/**']
+    branches: [main, develop, 'feature/**', 'fix/**']
   pull_request:
     branches: [main]
 
@@ -14,6 +14,14 @@ jobs:
   typecheck-and-lint:
     name: Strict Typecheck & Code Hygiene
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_telemedicine?schema=public
+      JWT_ACCESS_SECRET: ci_typecheck_secret_min_32_characters_long
+      JWT_REFRESH_SECRET: ci_typecheck_secret_min_32_characters_long
+      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
