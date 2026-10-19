@@ -1,6 +1,6 @@
 # Amrutam Telemedicine Backend (Production Grade)
 
-[![CI / CD Quality Pipeline](https://github.com/amrutam/health-system/actions/workflows/ci.yml/badge.svg)](https://github.com/amrutam/health-system/actions/workflows/ci.yml)
+[![CI / CD Pipeline](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen?logo=githubactions&logoColor=white)](#12-cicd-pipeline--github-branch-protection)
 [![Node.js Version](https://img.shields.io/badge/node-v22.16%2B-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-v5.8%20(strict)-blue.svg)](https://www.typescriptlang.org/)
 [![Fastify](https://img.shields.io/badge/fastify-v5.2-black.svg)](https://fastify.dev/)
