@@ -2,9 +2,9 @@ name: CI / CD Quality Pipeline
 
 on:
   push:
-    branches: [main, develop, 'feature/**', 'fix/**']
+    branches: [main, develop, deploy, staging, 'feature/**', 'fix/**']
   pull_request:
-    branches: [main]
+    branches: [main, deploy, staging, 'feature/**']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
