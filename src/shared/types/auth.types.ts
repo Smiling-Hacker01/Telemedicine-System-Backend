@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole } from "@prisma/client";
 
 export interface JwtUserPayload {
   userId: string;
@@ -21,7 +21,7 @@ export interface AuthenticatedUser {
   mfaEnabled: boolean;
 }
 
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyRequest {
     user?: JwtUserPayload;
     correlationId: string;

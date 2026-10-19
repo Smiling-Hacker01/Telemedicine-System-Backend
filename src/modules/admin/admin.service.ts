@@ -1,5 +1,5 @@
-import { ConsultationStatus, PaymentStatus, UserRole } from '@prisma/client';
-import { prisma } from '../../config/database.js';
+import { ConsultationStatus, PaymentStatus, UserRole } from "@prisma/client";
+import { prisma } from "../../config/database.js";
 
 export class AdminService {
   /**
@@ -25,7 +25,7 @@ export class AdminService {
 
       // 4. Consultation breakdown by status
       prisma.consultation.groupBy({
-        by: ['status'],
+        by: ["status"],
         _count: { _all: true },
       }),
 
@@ -39,10 +39,12 @@ export class AdminService {
       // 6. Recent bookings
       prisma.consultation.findMany({
         take: 10,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           patient: { select: { email: true, profile: true } },
-          doctor: { include: { user: { select: { email: true, profile: true } } } },
+          doctor: {
+            include: { user: { select: { email: true, profile: true } } },
+          },
           payment: true,
         },
       }),
@@ -65,7 +67,10 @@ export class AdminService {
     }
 
     const completed = statusCounts[ConsultationStatus.COMPLETED] || 0;
-    const completionRate = totalConsultations > 0 ? ((completed / totalConsultations) * 100).toFixed(2) + '%' : '0.00%';
+    const completionRate =
+      totalConsultations > 0
+        ? ((completed / totalConsultations) * 100).toFixed(2) + "%"
+        : "0.00%";
 
     return {
       overview: {
@@ -97,7 +102,9 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const where = {
-      action: filters.action ? { contains: filters.action, mode: 'insensitive' as const } : undefined,
+      action: filters.action
+        ? { contains: filters.action, mode: "insensitive" as const }
+        : undefined,
       resourceType: filters.resourceType,
       actorId: filters.actorId,
     };
@@ -107,7 +114,7 @@ export class AdminService {
         where,
         skip,
         take: limit,
-        orderBy: { timestamp: 'desc' },
+        orderBy: { timestamp: "desc" },
         include: {
           user: {
             select: {

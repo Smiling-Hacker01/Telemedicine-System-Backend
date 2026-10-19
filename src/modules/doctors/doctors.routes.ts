@@ -1,35 +1,38 @@
-import { FastifyInstance } from 'fastify';
-import { UserRole } from '@prisma/client';
-import { doctorsController } from './doctors.controller.js';
-import { authenticateToken, requireRoles } from '../../shared/middleware/auth.middleware.js';
+import { FastifyInstance } from "fastify";
+import { UserRole } from "@prisma/client";
+import { doctorsController } from "./doctors.controller.js";
+import {
+  authenticateToken,
+  requireRoles,
+} from "../../shared/middleware/auth.middleware.js";
 
 export async function doctorsRoutes(app: FastifyInstance) {
   // Public doctor endpoint
-  app.get('/:id', doctorsController.getDoctorById);
+  app.get("/:id", doctorsController.getDoctorById);
 
   // Authenticated doctor endpoints
   app.post(
-    '/profile',
+    "/profile",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    doctorsController.createProfile
+    doctorsController.createProfile,
   );
 
   app.get(
-    '/me/profile',
+    "/me/profile",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    doctorsController.getMyProfile
+    doctorsController.getMyProfile,
   );
 
   app.patch(
-    '/me/profile',
+    "/me/profile",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    doctorsController.updateMyProfile
+    doctorsController.updateMyProfile,
   );
 
   // Admin verification endpoint
   app.patch(
-    '/:id/verify',
+    "/:id/verify",
     { preHandler: [authenticateToken, requireRoles([UserRole.ADMIN])] },
-    doctorsController.verifyDoctor
+    doctorsController.verifyDoctor,
   );
 }

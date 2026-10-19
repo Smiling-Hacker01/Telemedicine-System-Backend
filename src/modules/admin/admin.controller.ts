@@ -1,6 +1,6 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { adminService, AdminService } from './admin.service.js';
-import { z } from 'zod';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { adminService, AdminService } from "./admin.service.js";
+import { z } from "zod";
 
 const auditQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

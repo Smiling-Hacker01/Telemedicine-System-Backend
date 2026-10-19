@@ -1,25 +1,29 @@
-import jwt from 'jsonwebtoken';
-import { AuditOutcome } from '@prisma/client';
-import { env } from '../../config/environment.js';
-import { authRepository, AuthRepository } from './auth.repository.js';
-import { hashPassword, verifyPassword } from '../../shared/security/hash.js';
-import { generateMfaSecret, verifyMfaToken, GeneratedMfaSecret } from '../../shared/security/totp.js';
-import { auditService } from '../../shared/security/audit.service.js';
+import jwt from "jsonwebtoken";
+import { AuditOutcome } from "@prisma/client";
+import { env } from "../../config/environment.js";
+import { authRepository, AuthRepository } from "./auth.repository.js";
+import { hashPassword, verifyPassword } from "../../shared/security/hash.js";
+import {
+  generateMfaSecret,
+  verifyMfaToken,
+  GeneratedMfaSecret,
+} from "../../shared/security/totp.js";
+import { auditService } from "../../shared/security/audit.service.js";
 import {
   ConflictError,
   UnauthorizedError,
   ValidationError,
   ForbiddenError,
   NotFoundError,
-} from '../../shared/errors/app-error.js';
+} from "../../shared/errors/app-error.js";
 import {
   RegisterUserInput,
   LoginUserInput,
   VerifyMfaInput,
   MfaLoginInput,
   MfaRecoveryLoginInput,
-} from './auth.schemas.js';
-import { AuthTokens, JwtUserPayload } from '../../shared/types/auth.types.js';
+} from "./auth.schemas.js";
+import { AuthTokens, JwtUserPayload } from "../../shared/types/auth.types.js";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -47,19 +51,26 @@ export class AuthService {
     };
   }
 
-  async register(input: RegisterUserInput, clientIp?: string, userAgent?: string, correlationId?: string) {
+  async register(
+    input: RegisterUserInput,
+    clientIp?: string,
+    userAgent?: string,
+    correlationId?: string,
+  ) {
     const existing = await this.repo.findByEmail(input.email);
     if (existing) {
       await auditService.record({
-        action: 'AUTH_REGISTER_FAILED_DUPLICATE',
-        resourceType: 'User',
+        action: "AUTH_REGISTER_FAILED_DUPLICATE",
+        resourceType: "User",
         outcome: AuditOutcome.FAILURE,
         ipAddress: clientIp,
         userAgent,
         correlationId,
         metadata: { email: input.email },
       });
-      throw new ConflictError('An account with this email address already exists');
+      throw new ConflictError(
+        "An account with this email address already exists",
+      );
     }
 
     const passwordHash = await hashPassword(input.password);
@@ -75,8 +86,8 @@ export class AuthService {
     await auditService.record({
       actorId: user.id,
       actorRole: user.role,
-      action: 'AUTH_REGISTER_SUCCESS',
-      resourceType: 'User',
+      action: "AUTH_REGISTER_SUCCESS",
+      resourceType: "User",
       resourceId: user.id,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -104,42 +115,54 @@ export class AuthService {
     };
   }
 
-  async login(input: LoginUserInput, clientIp?: string, userAgent?: string, correlationId?: string) {
+  async login(
+    input: LoginUserInput,
+    clientIp?: string,
+    userAgent?: string,
+    correlationId?: string,
+  ) {
     const user = await this.repo.findByEmail(input.email);
     if (!user) {
       // Mitigate account enumeration: perform dummy hash check
-      await hashPassword('dummy_password_timing_defense');
-      throw new UnauthorizedError('Invalid email or password');
+      await hashPassword("dummy_password_timing_defense");
+      throw new UnauthorizedError("Invalid email or password");
     }
 
     // Check account lockout
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const waitMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / (60 * 1000));
+      const waitMinutes = Math.ceil(
+        (user.lockedUntil.getTime() - Date.now()) / (60 * 1000),
+      );
       await auditService.record({
         actorId: user.id,
         actorRole: user.role,
-        action: 'AUTH_LOGIN_BLOCKED_LOCKED_ACCOUNT',
-        resourceType: 'User',
+        action: "AUTH_LOGIN_BLOCKED_LOCKED_ACCOUNT",
+        resourceType: "User",
         resourceId: user.id,
         outcome: AuditOutcome.FAILURE,
         ipAddress: clientIp,
         userAgent,
         correlationId,
       });
-      throw new ForbiddenError(`Account is temporarily locked due to multiple failed login attempts. Try again in ${waitMinutes} minutes.`);
+      throw new ForbiddenError(
+        `Account is temporarily locked due to multiple failed login attempts. Try again in ${waitMinutes} minutes.`,
+      );
     }
 
     const isMatch = await verifyPassword(input.password, user.passwordHash);
     if (!isMatch) {
       const attempts = user.failedLoginAttempts + 1;
-      const lockedUntil = attempts >= MAX_FAILED_ATTEMPTS ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null;
+      const lockedUntil =
+        attempts >= MAX_FAILED_ATTEMPTS
+          ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+          : null;
       await this.repo.updateFailedLogin(user.id, attempts, lockedUntil);
 
       await auditService.record({
         actorId: user.id,
         actorRole: user.role,
-        action: 'AUTH_LOGIN_FAILED_CREDENTIALS',
-        resourceType: 'User',
+        action: "AUTH_LOGIN_FAILED_CREDENTIALS",
+        resourceType: "User",
         resourceId: user.id,
         outcome: AuditOutcome.FAILURE,
         ipAddress: clientIp,
@@ -148,7 +171,7 @@ export class AuthService {
         metadata: { attempts },
       });
 
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError("Invalid email or password");
     }
 
     // Reset failed login counter on successful password verification
@@ -157,16 +180,21 @@ export class AuthService {
     // If MFA is enabled, issue an ephemeral MFA challenge ticket
     if (user.mfaEnabled) {
       const mfaTicket = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role, isMfaChallenge: true },
+        {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          isMfaChallenge: true,
+        },
         env.JWT_ACCESS_SECRET,
-        { expiresIn: '5m' }
+        { expiresIn: "5m" },
       );
 
       await auditService.record({
         actorId: user.id,
         actorRole: user.role,
-        action: 'AUTH_MFA_CHALLENGE_ISSUED',
-        resourceType: 'User',
+        action: "AUTH_MFA_CHALLENGE_ISSUED",
+        resourceType: "User",
         resourceId: user.id,
         outcome: AuditOutcome.SUCCESS,
         ipAddress: clientIp,
@@ -188,8 +216,8 @@ export class AuthService {
     await auditService.record({
       actorId: user.id,
       actorRole: user.role,
-      action: 'AUTH_LOGIN_SUCCESS',
-      resourceType: 'User',
+      action: "AUTH_LOGIN_SUCCESS",
+      resourceType: "User",
       resourceId: user.id,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -218,7 +246,12 @@ export class AuthService {
     };
   }
 
-  async verifyMfaLogin(input: MfaLoginInput, clientIp?: string, userAgent?: string, correlationId?: string) {
+  async verifyMfaLogin(
+    input: MfaLoginInput,
+    clientIp?: string,
+    userAgent?: string,
+    correlationId?: string,
+  ) {
     let payload: { userId: string; email: string; isMfaChallenge?: boolean };
     try {
       payload = jwt.verify(input.mfaTicket, env.JWT_ACCESS_SECRET) as {
@@ -227,16 +260,16 @@ export class AuthService {
         isMfaChallenge?: boolean;
       };
     } catch {
-      throw new UnauthorizedError('Invalid or expired MFA ticket');
+      throw new UnauthorizedError("Invalid or expired MFA ticket");
     }
 
     if (!payload.isMfaChallenge) {
-      throw new UnauthorizedError('Malformed MFA ticket');
+      throw new UnauthorizedError("Malformed MFA ticket");
     }
 
     const user = await this.repo.findById(payload.userId);
     if (!user || !user.mfaSecret) {
-      throw new UnauthorizedError('User does not have MFA configured');
+      throw new UnauthorizedError("User does not have MFA configured");
     }
 
     const isValid = verifyMfaToken(input.totpToken, user.mfaSecret);
@@ -244,22 +277,22 @@ export class AuthService {
       await auditService.record({
         actorId: user.id,
         actorRole: user.role,
-        action: 'AUTH_MFA_VERIFY_FAILED',
-        resourceType: 'User',
+        action: "AUTH_MFA_VERIFY_FAILED",
+        resourceType: "User",
         resourceId: user.id,
         outcome: AuditOutcome.FAILURE,
         ipAddress: clientIp,
         userAgent,
         correlationId,
       });
-      throw new UnauthorizedError('Invalid TOTP verification code');
+      throw new UnauthorizedError("Invalid TOTP verification code");
     }
 
     await auditService.record({
       actorId: user.id,
       actorRole: user.role,
-      action: 'AUTH_MFA_LOGIN_SUCCESS',
-      resourceType: 'User',
+      action: "AUTH_MFA_LOGIN_SUCCESS",
+      resourceType: "User",
       resourceId: user.id,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -287,7 +320,12 @@ export class AuthService {
     };
   }
 
-  async loginWithRecoveryCode(input: MfaRecoveryLoginInput, clientIp?: string, userAgent?: string, correlationId?: string) {
+  async loginWithRecoveryCode(
+    input: MfaRecoveryLoginInput,
+    clientIp?: string,
+    userAgent?: string,
+    correlationId?: string,
+  ) {
     let payload: { userId: string; email: string; isMfaChallenge?: boolean };
     try {
       payload = jwt.verify(input.mfaTicket, env.JWT_ACCESS_SECRET) as {
@@ -296,12 +334,12 @@ export class AuthService {
         isMfaChallenge?: boolean;
       };
     } catch {
-      throw new UnauthorizedError('Invalid or expired MFA ticket');
+      throw new UnauthorizedError("Invalid or expired MFA ticket");
     }
 
     const user = await this.repo.findById(payload.userId);
     if (!user || !user.mfaEnabled) {
-      throw new UnauthorizedError('User not found or MFA not enabled');
+      throw new UnauthorizedError("User not found or MFA not enabled");
     }
 
     const cleanInputCode = input.recoveryCode.trim().toUpperCase();
@@ -310,15 +348,15 @@ export class AuthService {
       await auditService.record({
         actorId: user.id,
         actorRole: user.role,
-        action: 'AUTH_MFA_RECOVERY_CODE_INVALID',
-        resourceType: 'User',
+        action: "AUTH_MFA_RECOVERY_CODE_INVALID",
+        resourceType: "User",
         resourceId: user.id,
         outcome: AuditOutcome.FAILURE,
         ipAddress: clientIp,
         userAgent,
         correlationId,
       });
-      throw new UnauthorizedError('Invalid recovery code');
+      throw new UnauthorizedError("Invalid recovery code");
     }
 
     // Burn the used recovery code
@@ -329,8 +367,8 @@ export class AuthService {
     await auditService.record({
       actorId: user.id,
       actorRole: user.role,
-      action: 'AUTH_MFA_RECOVERY_LOGIN_SUCCESS',
-      resourceType: 'User',
+      action: "AUTH_MFA_RECOVERY_LOGIN_SUCCESS",
+      resourceType: "User",
       resourceId: user.id,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -362,23 +400,32 @@ export class AuthService {
 
   async setupMfa(userId: string): Promise<GeneratedMfaSecret> {
     const user = await this.repo.findById(userId);
-    if (!user) throw new NotFoundError('User', userId);
+    if (!user) throw new NotFoundError("User", userId);
 
     const mfaData = generateMfaSecret(user.email);
-    await this.repo.setMfaSecret(userId, mfaData.encryptedSecret, mfaData.recoveryCodes);
+    await this.repo.setMfaSecret(
+      userId,
+      mfaData.encryptedSecret,
+      mfaData.recoveryCodes,
+    );
 
     return mfaData;
   }
 
-  async verifyAndEnableMfa(userId: string, input: VerifyMfaInput): Promise<void> {
+  async verifyAndEnableMfa(
+    userId: string,
+    input: VerifyMfaInput,
+  ): Promise<void> {
     const user = await this.repo.findById(userId);
     if (!user || !user.mfaSecret) {
-      throw new ValidationError('MFA setup must be initiated before verification');
+      throw new ValidationError(
+        "MFA setup must be initiated before verification",
+      );
     }
 
     const isValid = verifyMfaToken(input.token, user.mfaSecret);
     if (!isValid) {
-      throw new ValidationError('Invalid 6-digit TOTP verification code');
+      throw new ValidationError("Invalid 6-digit TOTP verification code");
     }
 
     await this.repo.enableMfa(userId);
@@ -386,8 +433,8 @@ export class AuthService {
     await auditService.record({
       actorId: userId,
       actorRole: user.role,
-      action: 'AUTH_MFA_ENABLED',
-      resourceType: 'User',
+      action: "AUTH_MFA_ENABLED",
+      resourceType: "User",
       resourceId: userId,
       outcome: AuditOutcome.SUCCESS,
     });
@@ -395,10 +442,15 @@ export class AuthService {
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     try {
-      const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as JwtUserPayload;
+      const decoded = jwt.verify(
+        refreshToken,
+        env.JWT_REFRESH_SECRET,
+      ) as JwtUserPayload;
       const user = await this.repo.findById(decoded.userId);
       if (!user || !user.isActive) {
-        throw new UnauthorizedError('User account is inactive or no longer exists');
+        throw new UnauthorizedError(
+          "User account is inactive or no longer exists",
+        );
       }
 
       return this.generateTokens({
@@ -408,13 +460,13 @@ export class AuthService {
         mfaVerified: decoded.mfaVerified,
       });
     } catch {
-      throw new UnauthorizedError('Invalid or expired refresh token');
+      throw new UnauthorizedError("Invalid or expired refresh token");
     }
   }
 
   async getCurrentUser(userId: string) {
     const user = await this.repo.findById(userId);
-    if (!user) throw new NotFoundError('User', userId);
+    if (!user) throw new NotFoundError("User", userId);
 
     return {
       id: user.id,

@@ -1,8 +1,16 @@
-import { Doctor, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database.js';
+import { Doctor, Prisma } from "@prisma/client";
+import { prisma } from "../../config/database.js";
 
 export class DoctorsRepository {
-  async findByUserId(userId: string): Promise<(Doctor & { user: { email: string; profile: Prisma.ProfileGetPayload<object> | null } }) | null> {
+  async findByUserId(userId: string): Promise<
+    | (Doctor & {
+        user: {
+          email: string;
+          profile: Prisma.ProfileGetPayload<object> | null;
+        };
+      })
+    | null
+  > {
     return prisma.doctor.findUnique({
       where: { userId },
       include: {
@@ -16,7 +24,15 @@ export class DoctorsRepository {
     });
   }
 
-  async findById(id: string): Promise<(Doctor & { user: { email: string; profile: Prisma.ProfileGetPayload<object> | null } }) | null> {
+  async findById(id: string): Promise<
+    | (Doctor & {
+        user: {
+          email: string;
+          profile: Prisma.ProfileGetPayload<object> | null;
+        };
+      })
+    | null
+  > {
     return prisma.doctor.findUnique({
       where: { id },
       include: {
@@ -36,13 +52,16 @@ export class DoctorsRepository {
     });
   }
 
-  async createDoctor(userId: string, data: {
-    licenseNumber: string;
-    specialties: string[];
-    experienceYears: number;
-    consultationFee: number;
-    bio?: string;
-  }): Promise<Doctor> {
+  async createDoctor(
+    userId: string,
+    data: {
+      licenseNumber: string;
+      specialties: string[];
+      experienceYears: number;
+      consultationFee: number;
+      bio?: string;
+    },
+  ): Promise<Doctor> {
     return prisma.doctor.create({
       data: {
         userId,
@@ -55,19 +74,25 @@ export class DoctorsRepository {
     });
   }
 
-  async updateDoctor(id: string, data: Partial<{
-    specialties: string[];
-    experienceYears: number;
-    consultationFee: number;
-    bio?: string;
-    isVerified: boolean;
-  }>): Promise<Doctor> {
+  async updateDoctor(
+    id: string,
+    data: Partial<{
+      specialties: string[];
+      experienceYears: number;
+      consultationFee: number;
+      bio?: string;
+      isVerified: boolean;
+    }>,
+  ): Promise<Doctor> {
     return prisma.doctor.update({
       where: { id },
       data: {
         specialties: data.specialties,
         experienceYears: data.experienceYears,
-        consultationFee: data.consultationFee !== undefined ? new Prisma.Decimal(data.consultationFee) : undefined,
+        consultationFee:
+          data.consultationFee !== undefined
+            ? new Prisma.Decimal(data.consultationFee)
+            : undefined,
         bio: data.bio,
         isVerified: data.isVerified,
       },

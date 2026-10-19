@@ -1,10 +1,10 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { doctorsService, DoctorsService } from './doctors.service.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { doctorsService, DoctorsService } from "./doctors.service.js";
 import {
   createDoctorProfileSchema,
   updateDoctorProfileSchema,
   verifyDoctorSchema,
-} from './doctors.schemas.js';
+} from "./doctors.schemas.js";
 
 export class DoctorsController {
   constructor(private service: DoctorsService = doctorsService) {}
@@ -16,13 +16,13 @@ export class DoctorsController {
       userId,
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(201).send({
       success: true,
-      message: 'Doctor profile created successfully',
+      message: "Doctor profile created successfully",
       data: { doctor },
       correlationId: request.correlationId,
     });
@@ -57,7 +57,7 @@ export class DoctorsController {
 
     return reply.status(200).send({
       success: true,
-      message: 'Doctor profile updated successfully',
+      message: "Doctor profile updated successfully",
       data: { doctor },
       correlationId: request.correlationId,
     });
@@ -71,7 +71,7 @@ export class DoctorsController {
 
     return reply.status(200).send({
       success: true,
-      message: `Doctor status updated to ${input.isVerified ? 'verified' : 'unverified'}`,
+      message: `Doctor status updated to ${input.isVerified ? "verified" : "unverified"}`,
       data: { doctor },
       correlationId: request.correlationId,
     });

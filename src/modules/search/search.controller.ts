@@ -1,6 +1,6 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { searchService, SearchService } from './search.service.js';
-import { searchDoctorsSchema } from './search.schemas.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { searchService, SearchService } from "./search.service.js";
+import { searchDoctorsSchema } from "./search.schemas.js";
 
 export class SearchController {
   constructor(private service: SearchService = searchService) {}

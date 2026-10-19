@@ -1,15 +1,19 @@
-import { PaymentStatus, ConsultationStatus, AuditOutcome } from '@prisma/client';
-import { prisma } from '../../config/database.js';
-import { env } from '../../config/environment.js';
-import { verifyHmacSignature } from '../../shared/security/crypto.js';
-import { auditService } from '../../shared/security/audit.service.js';
-import { paymentTransactionsCounter } from '../../infrastructure/observability/metrics.js';
+import {
+  PaymentStatus,
+  ConsultationStatus,
+  AuditOutcome,
+} from "@prisma/client";
+import { prisma } from "../../config/database.js";
+import { env } from "../../config/environment.js";
+import { verifyHmacSignature } from "../../shared/security/crypto.js";
+import { auditService } from "../../shared/security/audit.service.js";
+import { paymentTransactionsCounter } from "../../infrastructure/observability/metrics.js";
 import {
   NotFoundError,
   UnauthorizedError,
   ConflictError,
-} from '../../shared/errors/app-error.js';
-import { WebhookPayload } from './payments.schemas.js';
+} from "../../shared/errors/app-error.js";
+import { WebhookPayload } from "./payments.schemas.js";
 
 export class PaymentsService {
   /**
@@ -25,22 +29,27 @@ export class PaymentsService {
     });
 
     if (!consultation) {
-      throw new NotFoundError('Consultation', consultationId);
+      throw new NotFoundError("Consultation", consultationId);
     }
 
     if (consultation.patientId !== userId) {
-      throw new UnauthorizedError('You are not authorized to pay for this consultation');
+      throw new UnauthorizedError(
+        "You are not authorized to pay for this consultation",
+      );
     }
 
     if (consultation.status !== ConsultationStatus.PENDING_PAYMENT) {
       throw new ConflictError(
-        `Consultation is already in '${consultation.status}' status and does not require payment`
+        `Consultation is already in '${consultation.status}' status and does not require payment`,
       );
     }
 
     const payment = consultation.payment;
     if (!payment) {
-      throw new NotFoundError('Payment record for consultation', consultationId);
+      throw new NotFoundError(
+        "Payment record for consultation",
+        consultationId,
+      );
     }
 
     return {
@@ -56,14 +65,25 @@ export class PaymentsService {
   /**
    * Processes webhook from Payment Gateway with cryptographic HMAC signature verification and idempotency
    */
-  async processWebhook(rawPayload: string, signatureHeader?: string): Promise<{ received: boolean; status: string }> {
+  async processWebhook(
+    rawPayload: string,
+    signatureHeader?: string,
+  ): Promise<{ received: boolean; status: string }> {
     if (!signatureHeader) {
-      throw new UnauthorizedError('Missing required Webhook Signature header (x-amrutam-signature)');
+      throw new UnauthorizedError(
+        "Missing required Webhook Signature header (x-amrutam-signature)",
+      );
     }
 
-    const isValid = verifyHmacSignature(rawPayload, env.PAYMENT_WEBHOOK_SECRET, signatureHeader);
+    const isValid = verifyHmacSignature(
+      rawPayload,
+      env.PAYMENT_WEBHOOK_SECRET,
+      signatureHeader,
+    );
     if (!isValid) {
-      throw new UnauthorizedError('Invalid webhook signature verification failed');
+      throw new UnauthorizedError(
+        "Invalid webhook signature verification failed",
+      );
     }
 
     const payload: WebhookPayload = JSON.parse(rawPayload);
@@ -75,18 +95,23 @@ export class PaymentsService {
       });
 
       if (!payment) {
-        throw new NotFoundError('Payment for consultation', payload.data.consultationId);
+        throw new NotFoundError(
+          "Payment for consultation",
+          payload.data.consultationId,
+        );
       }
 
       // Idempotency check: If payment already transitioned to target state, return without side-effects
       if (
-        (payload.event === 'payment.succeeded' && payment.status === PaymentStatus.SUCCESS) ||
-        (payload.event === 'payment.failed' && payment.status === PaymentStatus.FAILED)
+        (payload.event === "payment.succeeded" &&
+          payment.status === PaymentStatus.SUCCESS) ||
+        (payload.event === "payment.failed" &&
+          payment.status === PaymentStatus.FAILED)
       ) {
-        return { received: true, status: 'IDEMPOTENT_IGNORE' };
+        return { received: true, status: "IDEMPOTENT_IGNORE" };
       }
 
-      if (payload.event === 'payment.succeeded') {
+      if (payload.event === "payment.succeeded") {
         await tx.payment.update({
           where: { id: payment.id },
           data: {
@@ -106,12 +131,15 @@ export class PaymentsService {
           },
         });
 
-        paymentTransactionsCounter.inc({ status: 'SUCCESS', provider: payment.provider });
+        paymentTransactionsCounter.inc({
+          status: "SUCCESS",
+          provider: payment.provider,
+        });
 
         await auditService.record({
-          actorRole: 'PAYMENT_GATEWAY',
-          action: 'PAYMENT_SUCCEEDED',
-          resourceType: 'Payment',
+          actorRole: "PAYMENT_GATEWAY",
+          action: "PAYMENT_SUCCEEDED",
+          resourceType: "Payment",
           resourceId: payment.id,
           outcome: AuditOutcome.SUCCESS,
           metadata: {
@@ -121,27 +149,30 @@ export class PaymentsService {
           },
         });
 
-        return { received: true, status: 'PAYMENT_SUCCESS' };
+        return { received: true, status: "PAYMENT_SUCCESS" };
       }
 
-      if (payload.event === 'payment.failed') {
+      if (payload.event === "payment.failed") {
         await tx.payment.update({
           where: { id: payment.id },
           data: {
             status: PaymentStatus.FAILED,
             metadata: {
-              failureReason: payload.data.failureReason || 'Declined',
+              failureReason: payload.data.failureReason || "Declined",
               eventId: payload.eventId,
             },
           },
         });
 
-        paymentTransactionsCounter.inc({ status: 'FAILED', provider: payment.provider });
+        paymentTransactionsCounter.inc({
+          status: "FAILED",
+          provider: payment.provider,
+        });
 
         await auditService.record({
-          actorRole: 'PAYMENT_GATEWAY',
-          action: 'PAYMENT_FAILED',
-          resourceType: 'Payment',
+          actorRole: "PAYMENT_GATEWAY",
+          action: "PAYMENT_FAILED",
+          resourceType: "Payment",
           resourceId: payment.id,
           outcome: AuditOutcome.FAILURE,
           metadata: {
@@ -150,10 +181,10 @@ export class PaymentsService {
           },
         });
 
-        return { received: true, status: 'PAYMENT_FAILED' };
+        return { received: true, status: "PAYMENT_FAILED" };
       }
 
-      return { received: true, status: 'EVENT_UNHANDLED' };
+      return { received: true, status: "EVENT_UNHANDLED" };
     });
   }
 }

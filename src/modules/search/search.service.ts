@@ -1,8 +1,8 @@
-import { Prisma, SlotStatus } from '@prisma/client';
-import { prisma } from '../../config/database.js';
-import { getRedisClient } from '../../config/redis.js';
-import { logger } from '../../config/logger.js';
-import { SearchDoctorsInput } from './search.schemas.js';
+import { Prisma, SlotStatus } from "@prisma/client";
+import { prisma } from "../../config/database.js";
+import { getRedisClient } from "../../config/redis.js";
+import { logger } from "../../config/logger.js";
+import { SearchDoctorsInput } from "./search.schemas.js";
 
 export class SearchService {
   async searchDoctors(input: SearchDoctorsInput) {
@@ -17,11 +17,14 @@ export class SearchService {
     try {
       const cached = await redis.get(cacheKey);
       if (cached) {
-        logger.debug({ cacheKey }, 'Doctor search cache HIT');
+        logger.debug({ cacheKey }, "Doctor search cache HIT");
         return JSON.parse(cached);
       }
     } catch (err) {
-      logger.warn({ error: err }, 'Redis cache read failed during doctor search');
+      logger.warn(
+        { error: err },
+        "Redis cache read failed during doctor search",
+      );
     }
 
     const where: Prisma.DoctorWhereInput = {
@@ -36,8 +39,14 @@ export class SearchService {
 
     if (input.minFee !== undefined || input.maxFee !== undefined) {
       where.consultationFee = {
-        gte: input.minFee !== undefined ? new Prisma.Decimal(input.minFee) : undefined,
-        lte: input.maxFee !== undefined ? new Prisma.Decimal(input.maxFee) : undefined,
+        gte:
+          input.minFee !== undefined
+            ? new Prisma.Decimal(input.minFee)
+            : undefined,
+        lte:
+          input.maxFee !== undefined
+            ? new Prisma.Decimal(input.maxFee)
+            : undefined,
       };
     }
 
@@ -55,14 +64,14 @@ export class SearchService {
 
     if (input.query) {
       where.OR = [
-        { bio: { contains: input.query, mode: 'insensitive' } },
+        { bio: { contains: input.query, mode: "insensitive" } },
         { specialties: { has: input.query } },
         {
           user: {
             profile: {
               OR: [
-                { firstName: { contains: input.query, mode: 'insensitive' } },
-                { lastName: { contains: input.query, mode: 'insensitive' } },
+                { firstName: { contains: input.query, mode: "insensitive" } },
+                { lastName: { contains: input.query, mode: "insensitive" } },
               ],
             },
           },
@@ -86,10 +95,11 @@ export class SearchService {
     }
 
     // Dynamic sort
-    let orderBy: Prisma.DoctorOrderByWithRelationInput = { rating: 'desc' };
-    if (input.sortBy === 'fee_asc') orderBy = { consultationFee: 'asc' };
-    if (input.sortBy === 'fee_desc') orderBy = { consultationFee: 'desc' };
-    if (input.sortBy === 'experience_desc') orderBy = { experienceYears: 'desc' };
+    let orderBy: Prisma.DoctorOrderByWithRelationInput = { rating: "desc" };
+    if (input.sortBy === "fee_asc") orderBy = { consultationFee: "asc" };
+    if (input.sortBy === "fee_desc") orderBy = { consultationFee: "desc" };
+    if (input.sortBy === "experience_desc")
+      orderBy = { experienceYears: "desc" };
 
     const [doctors, total] = await Promise.all([
       prisma.doctor.findMany({
@@ -128,7 +138,10 @@ export class SearchService {
     try {
       await redis.setex(cacheKey, 60, JSON.stringify(result));
     } catch (err) {
-      logger.warn({ error: err }, 'Redis cache set failed during doctor search');
+      logger.warn(
+        { error: err },
+        "Redis cache set failed during doctor search",
+      );
     }
 
     return result;

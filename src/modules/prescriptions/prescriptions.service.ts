@@ -1,16 +1,23 @@
-import { UserRole, AuditOutcome, ConsultationStatus } from '@prisma/client';
-import { prisma } from '../../config/database.js';
-import { encryptData, decryptData, generateHmacSignature } from '../../shared/security/crypto.js';
-import { auditService } from '../../shared/security/audit.service.js';
-import { prescriptionsIssuedCounter } from '../../infrastructure/observability/metrics.js';
-import { env } from '../../config/environment.js';
+import { UserRole, AuditOutcome, ConsultationStatus } from "@prisma/client";
+import { prisma } from "../../config/database.js";
+import {
+  encryptData,
+  decryptData,
+  generateHmacSignature,
+} from "../../shared/security/crypto.js";
+import { auditService } from "../../shared/security/audit.service.js";
+import { prescriptionsIssuedCounter } from "../../infrastructure/observability/metrics.js";
+import { env } from "../../config/environment.js";
 import {
   ConflictError,
   NotFoundError,
   ForbiddenError,
   ValidationError,
-} from '../../shared/errors/app-error.js';
-import { CreatePrescriptionInput, MedicationItem } from './prescriptions.schemas.js';
+} from "../../shared/errors/app-error.js";
+import {
+  CreatePrescriptionInput,
+  MedicationItem,
+} from "./prescriptions.schemas.js";
 
 export class PrescriptionsService {
   async createPrescription(
@@ -18,7 +25,7 @@ export class PrescriptionsService {
     input: CreatePrescriptionInput,
     clientIp?: string,
     userAgent?: string,
-    correlationId?: string
+    correlationId?: string,
   ) {
     // 1. Fetch consultation
     const consultation = await prisma.consultation.findUnique({
@@ -30,12 +37,14 @@ export class PrescriptionsService {
     });
 
     if (!consultation) {
-      throw new NotFoundError('Consultation', input.consultationId);
+      throw new NotFoundError("Consultation", input.consultationId);
     }
 
     // 2. Strict authorization: Only the assigned doctor can issue a prescription
     if (consultation.doctor.userId !== userId) {
-      throw new ForbiddenError('You can only issue prescriptions for consultations assigned to you');
+      throw new ForbiddenError(
+        "You can only issue prescriptions for consultations assigned to you",
+      );
     }
 
     // 3. Status validation: Consultation must be IN_PROGRESS or COMPLETED
@@ -44,13 +53,15 @@ export class PrescriptionsService {
       consultation.status !== ConsultationStatus.COMPLETED
     ) {
       throw new ValidationError(
-        `Prescription cannot be issued while consultation is in '${consultation.status}' status. It must be IN_PROGRESS or COMPLETED.`
+        `Prescription cannot be issued while consultation is in '${consultation.status}' status. It must be IN_PROGRESS or COMPLETED.`,
       );
     }
 
     // 4. Immutability check: Only 1 prescription per consultation
     if (consultation.prescription) {
-      throw new ConflictError('A prescription has already been issued for this consultation and is immutable');
+      throw new ConflictError(
+        "A prescription has already been issued for this consultation and is immutable",
+      );
     }
 
     // 5. Encrypt Sensitive Protected Health Information (PHI) using AES-256-GCM
@@ -60,7 +71,10 @@ export class PrescriptionsService {
 
     // 6. Generate digital signature (doctor authenticity & anti-tampering)
     const signaturePayload = `${consultation.doctorId}:${consultation.id}:${input.diagnosis}:${JSON.stringify(input.medications)}`;
-    const digitalSignature = generateHmacSignature(signaturePayload, env.DATA_ENCRYPTION_KEY);
+    const digitalSignature = generateHmacSignature(
+      signaturePayload,
+      env.DATA_ENCRYPTION_KEY,
+    );
 
     // 7. Persist encrypted prescription record
     const prescription = await prisma.prescription.create({
@@ -81,9 +95,9 @@ export class PrescriptionsService {
 
     await auditService.record({
       actorId: userId,
-      actorRole: 'DOCTOR',
-      action: 'PRESCRIPTION_ISSUED',
-      resourceType: 'Prescription',
+      actorRole: "DOCTOR",
+      action: "PRESCRIPTION_ISSUED",
+      resourceType: "Prescription",
       resourceId: prescription.id,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -112,7 +126,7 @@ export class PrescriptionsService {
 
   async getPrescriptionByConsultationId(
     consultationId: string,
-    requestingUser: { userId: string; role: UserRole }
+    requestingUser: { userId: string; role: UserRole },
   ) {
     const consultation = await prisma.consultation.findUnique({
       where: { id: consultationId },
@@ -123,7 +137,7 @@ export class PrescriptionsService {
     });
 
     if (!consultation || !consultation.prescription) {
-      throw new NotFoundError('Prescription for consultation', consultationId);
+      throw new NotFoundError("Prescription for consultation", consultationId);
     }
 
     // Strict Authorization Check
@@ -132,14 +146,18 @@ export class PrescriptionsService {
     const isAdmin = requestingUser.role === UserRole.ADMIN;
 
     if (!isPatient && !isDoctor && !isAdmin) {
-      throw new ForbiddenError('You do not have permission to view this medical prescription');
+      throw new ForbiddenError(
+        "You do not have permission to view this medical prescription",
+      );
     }
 
     const p = consultation.prescription;
 
     // Decrypt AES-256-GCM protected medical data
     const decryptedDiagnosis = decryptData(p.diagnosis);
-    const decryptedMedications: MedicationItem[] = JSON.parse(decryptData(p.medications));
+    const decryptedMedications: MedicationItem[] = JSON.parse(
+      decryptData(p.medications),
+    );
     const decryptedAdvice = p.advice ? decryptData(p.advice) : undefined;
 
     return {

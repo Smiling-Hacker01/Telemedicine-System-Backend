@@ -1,14 +1,19 @@
-import { z } from 'zod';
-import { ConsultationType } from '@prisma/client';
+import { z } from "zod";
+import { ConsultationType } from "@prisma/client";
 
 export const createBookingSchema = z.object({
-  slotId: z.string().uuid('Invalid slot ID format'),
-  consultationType: z.nativeEnum(ConsultationType).default(ConsultationType.VIDEO),
+  slotId: z.string().uuid("Invalid slot ID format"),
+  consultationType: z
+    .nativeEnum(ConsultationType)
+    .default(ConsultationType.VIDEO),
   notes: z.string().max(1000).optional(),
 });
 
 export const cancelBookingSchema = z.object({
-  cancellationReason: z.string().min(5, 'Please provide a valid cancellation reason').max(500),
+  cancellationReason: z
+    .string()
+    .min(5, "Please provide a valid cancellation reason")
+    .max(500),
 });
 
 export const queryBookingsSchema = z.object({

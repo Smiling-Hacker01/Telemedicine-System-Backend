@@ -1,11 +1,11 @@
-import { AvailabilitySlot, SlotStatus } from '@prisma/client';
-import { prisma } from '../../config/database.js';
+import { AvailabilitySlot, SlotStatus } from "@prisma/client";
+import { prisma } from "../../config/database.js";
 
 export class AvailabilityRepository {
   async findOverlappingSlot(
     doctorId: string,
     startTime: Date,
-    endTime: Date
+    endTime: Date,
   ): Promise<AvailabilitySlot | null> {
     return prisma.availabilitySlot.findFirst({
       where: {
@@ -33,7 +33,12 @@ export class AvailabilityRepository {
   }
 
   async createManySlots(
-    slots: Array<{ doctorId: string; startTime: Date; endTime: Date; status: SlotStatus }>
+    slots: Array<{
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      status: SlotStatus;
+    }>,
   ): Promise<number> {
     const result = await prisma.availabilitySlot.createMany({
       data: slots,
@@ -57,7 +62,7 @@ export class AvailabilityRepository {
           lte: filters.endDate,
         },
       },
-      orderBy: { startTime: 'asc' },
+      orderBy: { startTime: "asc" },
     });
   }
 
@@ -67,7 +72,10 @@ export class AvailabilityRepository {
     });
   }
 
-  async updateSlotStatus(id: string, status: SlotStatus): Promise<AvailabilitySlot> {
+  async updateSlotStatus(
+    id: string,
+    status: SlotStatus,
+  ): Promise<AvailabilitySlot> {
     return prisma.availabilitySlot.update({
       where: { id },
       data: { status },

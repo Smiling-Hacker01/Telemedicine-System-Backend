@@ -1,97 +1,111 @@
-import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import rateLimit from '@fastify/rate-limit';
-import swagger from '@fastify/swagger';
-import swaggerUi from '@fastify/swagger-ui';
-import { env } from '../config/environment.js';
-import { correlationIdMiddleware } from '../shared/middleware/correlation-id.middleware.js';
-import { errorHandler } from './error-handler.js';
-import { registerRoutes } from './register-routes.js';
-import { httpRequestDurationHistogram } from '../infrastructure/observability/metrics.js';
+import fastify, {
+  FastifyInstance,
+  FastifyRequest,
+  FastifyReply,
+} from "fastify";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import { env } from "../config/environment.js";
+import { correlationIdMiddleware } from "../shared/middleware/correlation-id.middleware.js";
+import { errorHandler } from "./error-handler.js";
+import { registerRoutes } from "./register-routes.js";
+import { httpRequestDurationHistogram } from "../infrastructure/observability/metrics.js";
 
 export async function createApp(): Promise<FastifyInstance> {
   const app = fastify({
-    disableRequestLogging: env.NODE_ENV === 'test',
+    disableRequestLogging: env.NODE_ENV === "test",
     trustProxy: true,
   });
 
   // 1. Correlation ID
-  app.addHook('onRequest', correlationIdMiddleware);
+  app.addHook("onRequest", correlationIdMiddleware);
 
   // 2. Metrics & Request Latency Tracker
-  app.addHook('onRequest', async (request: FastifyRequest) => {
+  app.addHook("onRequest", async (request: FastifyRequest) => {
     // @ts-expect-error adding startTime to request
     request.startTime = process.hrtime();
   });
 
-  app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
-    // @ts-expect-error retrieving startTime from request
-    if (request.startTime) {
-      // @ts-expect-error hrtime diff
-      const diff = process.hrtime(request.startTime);
-      const durationSeconds = diff[0] + diff[1] / 1e9;
-      const route = request.routeOptions?.url || request.url;
+  app.addHook(
+    "onResponse",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // @ts-expect-error retrieving startTime from request
+      if (request.startTime) {
+        // @ts-expect-error hrtime diff
+        const diff = process.hrtime(request.startTime);
+        const durationSeconds = diff[0] + diff[1] / 1e9;
+        const route = request.routeOptions?.url || request.url;
 
-      httpRequestDurationHistogram.observe(
-        {
-          method: request.method,
-          route,
-          status_code: reply.statusCode,
-        },
-        durationSeconds
-      );
-    }
-  });
+        httpRequestDurationHistogram.observe(
+          {
+            method: request.method,
+            route,
+            status_code: reply.statusCode,
+          },
+          durationSeconds,
+        );
+      }
+    },
+  );
 
   // 3. Security Headers (Helmet)
   await app.register(helmet, {
-    contentSecurityPolicy: env.NODE_ENV === 'production',
+    contentSecurityPolicy: env.NODE_ENV === "production",
     crossOriginEmbedderPolicy: false,
   });
 
   // 4. CORS
   await app.register(cors, {
-    origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id', 'Idempotency-Key', 'x-amrutam-signature'],
-    exposedHeaders: ['X-Correlation-Id', 'X-Idempotent-Replay'],
+    origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN.split(","),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Correlation-Id",
+      "Idempotency-Key",
+      "x-amrutam-signature",
+    ],
+    exposedHeaders: ["X-Correlation-Id", "X-Idempotent-Replay"],
     credentials: true,
   });
 
   // 5. Distributed / In-Memory Rate Limiting
   await app.register(rateLimit, {
     max: env.RATE_LIMIT_MAX_PER_MINUTE,
-    timeWindow: '1 minute',
-    allowList: ['/healthz', '/readyz', '/metrics'],
+    timeWindow: "1 minute",
+    allowList: ["/healthz", "/readyz", "/metrics"],
   });
 
   // 6. OpenAPI 3.1 & Swagger Documentation
   await app.register(swagger, {
     openapi: {
       info: {
-        title: 'Amrutam Telemedicine Backend API',
+        title: "Amrutam Telemedicine Backend API",
         description:
-          'Production-grade RESTful API specification for Amrutam Telemedicine System covering authentication, doctor profiles, atomic booking, consultation lifecycle, encrypted prescriptions, and payment reconciliation.',
-        version: '1.0.0',
+          "Production-grade RESTful API specification for Amrutam Telemedicine System covering authentication, doctor profiles, atomic booking, consultation lifecycle, encrypted prescriptions, and payment reconciliation.",
+        version: "1.0.0",
         contact: {
-          name: 'Amrutam Engineering Team',
-          email: 'engineering@amrutam.co.in',
+          name: "Amrutam Engineering Team",
+          email: "engineering@amrutam.co.in",
         },
       },
       servers: [
         {
           url: `http://localhost:${env.PORT}`,
-          description: 'Local development server',
+          description: "Local development server",
         },
       ],
       components: {
         securitySchemes: {
           bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
-            description: 'Enter your JWT access token generated by /api/v1/auth/login',
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description:
+              "Enter your JWT access token generated by /api/v1/auth/login",
           },
         },
       },
@@ -99,9 +113,9 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   await app.register(swaggerUi, {
-    routePrefix: '/docs',
+    routePrefix: "/docs",
     uiConfig: {
-      docExpansion: 'list',
+      docExpansion: "list",
       deepLinking: true,
     },
     staticCSP: true,

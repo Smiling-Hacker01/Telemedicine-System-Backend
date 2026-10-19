@@ -1,10 +1,13 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { availabilityService, AvailabilityService } from './availability.service.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import {
+  availabilityService,
+  AvailabilityService,
+} from "./availability.service.js";
 import {
   createSlotSchema,
   bulkCreateSlotsSchema,
   querySlotsSchema,
-} from './availability.schemas.js';
+} from "./availability.schemas.js";
 
 export class AvailabilityController {
   constructor(private service: AvailabilityService = availabilityService) {}
@@ -16,7 +19,7 @@ export class AvailabilityController {
 
     return reply.status(201).send({
       success: true,
-      message: 'Availability slot created successfully',
+      message: "Availability slot created successfully",
       data: { slot },
       correlationId: request.correlationId,
     });
@@ -53,7 +56,7 @@ export class AvailabilityController {
 
     return reply.status(200).send({
       success: true,
-      message: 'Availability slot cancelled successfully',
+      message: "Availability slot cancelled successfully",
       data: { slot },
       correlationId: request.correlationId,
     });

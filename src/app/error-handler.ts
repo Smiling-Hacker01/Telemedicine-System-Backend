@@ -1,12 +1,16 @@
-import { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
-import { Prisma } from '@prisma/client';
-import { AppError } from '../shared/errors/app-error.js';
-import { ApiErrorResponse } from '../shared/types/api.types.js';
-import { logger } from '../config/logger.js';
-import { env } from '../config/environment.js';
+import { FastifyError, FastifyRequest, FastifyReply } from "fastify";
+import { Prisma } from "@prisma/client";
+import { AppError } from "../shared/errors/app-error.js";
+import { ApiErrorResponse } from "../shared/types/api.types.js";
+import { logger } from "../config/logger.js";
+import { env } from "../config/environment.js";
 
-export function errorHandler(error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply) {
-  const correlationId = request.correlationId || 'unknown';
+export function errorHandler(
+  error: FastifyError | Error,
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const correlationId = request.correlationId || "unknown";
   const instance = request.url;
   const timestamp = new Date().toISOString();
 
@@ -25,9 +29,15 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
     };
 
     if (error.statusCode >= 500) {
-      logger.error({ error, correlationId, url: request.url }, 'Internal Server Error occurred');
+      logger.error(
+        { error, correlationId, url: request.url },
+        "Internal Server Error occurred",
+      );
     } else {
-      logger.warn({ errorCode: error.errorCode, message: error.message, correlationId }, 'Client operational error');
+      logger.warn(
+        { errorCode: error.errorCode, message: error.message, correlationId },
+        "Client operational error",
+      );
     }
 
     return reply.status(error.statusCode).send(errorResponse);
@@ -35,29 +45,29 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
 
   // 2. Prisma Database Errors
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2002') {
-      const target = (error.meta?.target as string[])?.join(', ') || 'field';
+    if (error.code === "P2002") {
+      const target = (error.meta?.target as string[])?.join(", ") || "field";
       const errorResponse: ApiErrorResponse = {
-        type: 'https://api.amrutam.co.in/errors/conflict',
-        title: 'ConflictError',
+        type: "https://api.amrutam.co.in/errors/conflict",
+        title: "ConflictError",
         status: 409,
         detail: `A record with this ${target} already exists`,
         instance,
-        errorCode: 'UNIQUE_CONSTRAINT_VIOLATION',
+        errorCode: "UNIQUE_CONSTRAINT_VIOLATION",
         correlationId,
         timestamp,
       };
       return reply.status(409).send(errorResponse);
     }
 
-    if (error.code === 'P2025') {
+    if (error.code === "P2025") {
       const errorResponse: ApiErrorResponse = {
-        type: 'https://api.amrutam.co.in/errors/not-found',
-        title: 'NotFoundError',
+        type: "https://api.amrutam.co.in/errors/not-found",
+        title: "NotFoundError",
         status: 404,
-        detail: 'The requested resource was not found',
+        detail: "The requested resource was not found",
         instance,
-        errorCode: 'RESOURCE_NOT_FOUND',
+        errorCode: "RESOURCE_NOT_FOUND",
         correlationId,
         timestamp,
       };
@@ -66,14 +76,14 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
   }
 
   // 3. Fastify Validation Errors
-  if ('validation' in error && error.validation) {
+  if ("validation" in error && error.validation) {
     const errorResponse: ApiErrorResponse = {
-      type: 'https://api.amrutam.co.in/errors/validation',
-      title: 'ValidationError',
+      type: "https://api.amrutam.co.in/errors/validation",
+      title: "ValidationError",
       status: 400,
       detail: error.message,
       instance,
-      errorCode: 'REQUEST_VALIDATION_FAILED',
+      errorCode: "REQUEST_VALIDATION_FAILED",
       correlationId,
       timestamp,
       errors: error.validation,
@@ -82,17 +92,21 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
   }
 
   // 4. Fallback: Unexpected Internal Error (Mask internal details in production)
-  logger.error({ error, correlationId, url: request.url }, 'Unhandled unexpected exception caught');
+  logger.error(
+    { error, correlationId, url: request.url },
+    "Unhandled unexpected exception caught",
+  );
 
   const errorResponse: ApiErrorResponse = {
-    type: 'https://api.amrutam.co.in/errors/internal-server-error',
-    title: 'InternalServerError',
+    type: "https://api.amrutam.co.in/errors/internal-server-error",
+    title: "InternalServerError",
     status: 500,
-    detail: env.NODE_ENV === 'production'
-      ? 'An unexpected error occurred. Please contact support with the correlation ID.'
-      : error.message,
+    detail:
+      env.NODE_ENV === "production"
+        ? "An unexpected error occurred. Please contact support with the correlation ID."
+        : error.message,
     instance,
-    errorCode: 'INTERNAL_SERVER_ERROR',
+    errorCode: "INTERNAL_SERVER_ERROR",
     correlationId,
     timestamp,
   };

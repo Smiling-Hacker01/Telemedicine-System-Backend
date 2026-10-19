@@ -1,6 +1,6 @@
-import { AuditOutcome } from '@prisma/client';
-import { prisma } from '../../config/database.js';
-import { logger } from '../../config/logger.js';
+import { AuditOutcome } from "@prisma/client";
+import { prisma } from "../../config/database.js";
+import { logger } from "../../config/logger.js";
 
 export interface AuditEventParams {
   actorId?: string;
@@ -21,25 +21,27 @@ export class AuditService {
    * Sanitizes metadata to guarantee no passwords, raw tokens, or raw medical data are logged
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sanitizeMetadata(meta?: Record<string, any>): Record<string, any> | undefined {
+  private sanitizeMetadata(
+    meta?: Record<string, any>,
+  ): Record<string, any> | undefined {
     if (!meta) return undefined;
     const sanitized = { ...meta };
     const sensitiveKeys = [
-      'password',
-      'passwordHash',
-      'token',
-      'accessToken',
-      'refreshToken',
-      'secret',
-      'mfaSecret',
-      'mfaRecoveryCodes',
-      'diagnosis',
-      'medications',
+      "password",
+      "passwordHash",
+      "token",
+      "accessToken",
+      "refreshToken",
+      "secret",
+      "mfaSecret",
+      "mfaRecoveryCodes",
+      "diagnosis",
+      "medications",
     ];
 
     for (const key of sensitiveKeys) {
       if (key in sanitized) {
-        sanitized[key] = '[REDACTED]';
+        sanitized[key] = "[REDACTED]";
       }
     }
     return sanitized;
@@ -61,7 +63,9 @@ export class AuditService {
           resourceId: params.resourceId || null,
           outcome: params.outcome || AuditOutcome.SUCCESS,
           ipAddress: params.ipAddress || null,
-          userAgent: params.userAgent ? params.userAgent.substring(0, 500) : null,
+          userAgent: params.userAgent
+            ? params.userAgent.substring(0, 500)
+            : null,
           correlationId: params.correlationId || null,
           metadata: sanitizedMeta || undefined,
         },
@@ -76,11 +80,14 @@ export class AuditService {
           outcome: params.outcome || AuditOutcome.SUCCESS,
           correlationId: params.correlationId,
         },
-        'Audit event recorded'
+        "Audit event recorded",
       );
     } catch (err) {
       // Never let an audit logging failure crash the primary business flow, but log error with high priority
-      logger.error({ error: err, auditParams: params }, 'Failed to persist audit log entry');
+      logger.error(
+        { error: err, auditParams: params },
+        "Failed to persist audit log entry",
+      );
     }
   }
 }

@@ -1,15 +1,25 @@
-import { User, UserRole, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database.js';
+import { User, UserRole, Prisma } from "@prisma/client";
+import { prisma } from "../../config/database.js";
 
 export class AuthRepository {
-  async findByEmail(email: string): Promise<(User & { profile: Prisma.ProfileGetPayload<object> | null }) | null> {
+  async findByEmail(
+    email: string,
+  ): Promise<
+    (User & { profile: Prisma.ProfileGetPayload<object> | null }) | null
+  > {
     return prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       include: { profile: true },
     });
   }
 
-  async findById(id: string): Promise<(User & { profile: Prisma.ProfileGetPayload<object> | null; doctor: Prisma.DoctorGetPayload<object> | null }) | null> {
+  async findById(id: string): Promise<
+    | (User & {
+        profile: Prisma.ProfileGetPayload<object> | null;
+        doctor: Prisma.DoctorGetPayload<object> | null;
+      })
+    | null
+  > {
     return prisma.user.findUnique({
       where: { id },
       include: { profile: true, doctor: true },
@@ -41,7 +51,11 @@ export class AuthRepository {
     });
   }
 
-  async updateFailedLogin(id: string, attempts: number, lockedUntil: Date | null): Promise<void> {
+  async updateFailedLogin(
+    id: string,
+    attempts: number,
+    lockedUntil: Date | null,
+  ): Promise<void> {
     await prisma.user.update({
       where: { id },
       data: {
@@ -61,7 +75,11 @@ export class AuthRepository {
     });
   }
 
-  async setMfaSecret(id: string, encryptedSecret: string, recoveryCodes: string[]): Promise<void> {
+  async setMfaSecret(
+    id: string,
+    encryptedSecret: string,
+    recoveryCodes: string[],
+  ): Promise<void> {
     await prisma.user.update({
       where: { id },
       data: {
@@ -91,7 +109,10 @@ export class AuthRepository {
     });
   }
 
-  async updateRecoveryCodes(id: string, remainingCodes: string[]): Promise<void> {
+  async updateRecoveryCodes(
+    id: string,
+    remainingCodes: string[],
+  ): Promise<void> {
     await prisma.user.update({
       where: { id },
       data: {

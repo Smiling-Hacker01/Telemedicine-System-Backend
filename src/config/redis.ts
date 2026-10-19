@@ -1,6 +1,6 @@
-import { Redis } from 'ioredis';
-import { env } from './environment.js';
-import { logger } from './logger.js';
+import { Redis } from "ioredis";
+import { env } from "./environment.js";
+import { logger } from "./logger.js";
 
 let redisInstance: Redis | null = null;
 
@@ -14,7 +14,7 @@ export function getRedisClient(): Redis {
         return delay;
       },
       reconnectOnError(err) {
-        const targetError = 'READONLY';
+        const targetError = "READONLY";
         if (err.message.includes(targetError)) {
           return true;
         }
@@ -22,12 +22,12 @@ export function getRedisClient(): Redis {
       },
     });
 
-    redisInstance.on('connect', () => {
-      logger.info('Redis connection established');
+    redisInstance.on("connect", () => {
+      logger.info("Redis connection established");
     });
 
-    redisInstance.on('error', (err) => {
-      logger.error({ error: err.message }, 'Redis client error');
+    redisInstance.on("error", (err) => {
+      logger.error({ error: err.message }, "Redis client error");
     });
   }
 
@@ -38,9 +38,9 @@ export async function checkRedisHealth(): Promise<boolean> {
   try {
     const client = getRedisClient();
     const pong = await client.ping();
-    return pong === 'PONG';
+    return pong === "PONG";
   } catch (error) {
-    logger.error({ error }, 'Redis health check failed');
+    logger.error({ error }, "Redis health check failed");
     return false;
   }
 }

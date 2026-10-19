@@ -1,28 +1,31 @@
-import { FastifyInstance } from 'fastify';
-import { UserRole } from '@prisma/client';
-import { availabilityController } from './availability.controller.js';
-import { authenticateToken, requireRoles } from '../../shared/middleware/auth.middleware.js';
+import { FastifyInstance } from "fastify";
+import { UserRole } from "@prisma/client";
+import { availabilityController } from "./availability.controller.js";
+import {
+  authenticateToken,
+  requireRoles,
+} from "../../shared/middleware/auth.middleware.js";
 
 export async function availabilityRoutes(app: FastifyInstance) {
   // Public query slots
-  app.get('/', availabilityController.getSlots);
+  app.get("/", availabilityController.getSlots);
 
   // Authenticated doctor endpoints
   app.post(
-    '/',
+    "/",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    availabilityController.createSlot
+    availabilityController.createSlot,
   );
 
   app.post(
-    '/bulk',
+    "/bulk",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    availabilityController.bulkCreateSlots
+    availabilityController.bulkCreateSlots,
   );
 
   app.delete(
-    '/:id',
+    "/:id",
     { preHandler: [authenticateToken, requireRoles([UserRole.DOCTOR])] },
-    availabilityController.cancelSlot
+    availabilityController.cancelSlot,
   );
 }

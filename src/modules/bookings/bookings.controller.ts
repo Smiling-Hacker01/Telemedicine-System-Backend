@@ -1,11 +1,11 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { bookingsService, BookingsService } from './bookings.service.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { bookingsService, BookingsService } from "./bookings.service.js";
 import {
   createBookingSchema,
   cancelBookingSchema,
   queryBookingsSchema,
-} from './bookings.schemas.js';
-import { saveIdempotentResponse } from '../../shared/middleware/idempotency.middleware.js';
+} from "./bookings.schemas.js";
+import { saveIdempotentResponse } from "../../shared/middleware/idempotency.middleware.js";
 
 export class BookingsController {
   constructor(private service: BookingsService = bookingsService) {}
@@ -13,20 +13,21 @@ export class BookingsController {
   createBooking = async (request: FastifyRequest, reply: FastifyReply) => {
     const patientId = request.user!.userId;
     const input = createBookingSchema.parse(request.body);
-    const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+    const idempotencyKey = request.headers["idempotency-key"] as
+      string | undefined;
 
     const consultation = await this.service.createBooking(
       patientId,
       input,
       idempotencyKey,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     const responsePayload = {
       success: true,
-      message: 'Consultation booked successfully. Proceed to payment.',
+      message: "Consultation booked successfully. Proceed to payment.",
       data: { consultation },
       correlationId: request.correlationId,
     };
@@ -37,7 +38,7 @@ export class BookingsController {
         request.url,
         201,
         responsePayload,
-        request.body
+        request.body,
       );
     }
 
@@ -65,7 +66,7 @@ export class BookingsController {
         userId: request.user!.userId,
         role: request.user!.role,
       },
-      query
+      query,
     );
 
     return reply.status(200).send({
@@ -87,13 +88,13 @@ export class BookingsController {
       },
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(200).send({
       success: true,
-      message: 'Consultation booking cancelled successfully',
+      message: "Consultation booking cancelled successfully",
       data: { consultation },
       correlationId: request.correlationId,
     });

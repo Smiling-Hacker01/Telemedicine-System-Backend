@@ -1,21 +1,27 @@
-import { ConsultationStatus, UserRole, AuditOutcome } from '@prisma/client';
-import { prisma } from '../../config/database.js';
-import { auditService } from '../../shared/security/audit.service.js';
+import { ConsultationStatus, UserRole, AuditOutcome } from "@prisma/client";
+import { prisma } from "../../config/database.js";
+import { auditService } from "../../shared/security/audit.service.js";
 import {
   ConflictError,
   NotFoundError,
   ForbiddenError,
-} from '../../shared/errors/app-error.js';
-import { UpdateConsultationStatusInput } from './consultations.schemas.js';
+} from "../../shared/errors/app-error.js";
+import { UpdateConsultationStatusInput } from "./consultations.schemas.js";
 
 const VALID_TRANSITIONS: Record<ConsultationStatus, ConsultationStatus[]> = {
-  [ConsultationStatus.PENDING_PAYMENT]: [ConsultationStatus.SCHEDULED, ConsultationStatus.CANCELLED],
+  [ConsultationStatus.PENDING_PAYMENT]: [
+    ConsultationStatus.SCHEDULED,
+    ConsultationStatus.CANCELLED,
+  ],
   [ConsultationStatus.SCHEDULED]: [
     ConsultationStatus.IN_PROGRESS,
     ConsultationStatus.CANCELLED,
     ConsultationStatus.NO_SHOW,
   ],
-  [ConsultationStatus.IN_PROGRESS]: [ConsultationStatus.COMPLETED, ConsultationStatus.CANCELLED],
+  [ConsultationStatus.IN_PROGRESS]: [
+    ConsultationStatus.COMPLETED,
+    ConsultationStatus.CANCELLED,
+  ],
   [ConsultationStatus.COMPLETED]: [],
   [ConsultationStatus.CANCELLED]: [],
   [ConsultationStatus.NO_SHOW]: [],
@@ -28,7 +34,7 @@ export class ConsultationsService {
     input: UpdateConsultationStatusInput,
     clientIp?: string,
     userAgent?: string,
-    correlationId?: string
+    correlationId?: string,
   ) {
     const consultation = await prisma.consultation.findUnique({
       where: { id: consultationId },
@@ -36,15 +42,18 @@ export class ConsultationsService {
     });
 
     if (!consultation) {
-      throw new NotFoundError('Consultation', consultationId);
+      throw new NotFoundError("Consultation", consultationId);
     }
 
     // Role check: only assigned doctor or admin can change lifecycle to IN_PROGRESS, COMPLETED, NO_SHOW
-    const isAssignedDoctor = consultation.doctor.userId === requestingUser.userId;
+    const isAssignedDoctor =
+      consultation.doctor.userId === requestingUser.userId;
     const isAdmin = requestingUser.role === UserRole.ADMIN;
 
     if (!isAssignedDoctor && !isAdmin) {
-      throw new ForbiddenError('Only the assigned doctor or administrator can modify the consultation state');
+      throw new ForbiddenError(
+        "Only the assigned doctor or administrator can modify the consultation state",
+      );
     }
 
     const currentStatus = consultation.status;
@@ -54,7 +63,7 @@ export class ConsultationsService {
     const allowed = VALID_TRANSITIONS[currentStatus];
     if (!allowed || !allowed.includes(nextStatus)) {
       throw new ConflictError(
-        `Invalid consultation state transition from '${currentStatus}' to '${nextStatus}'. Allowed transitions: [${allowed?.join(', ') || 'none'}]`
+        `Invalid consultation state transition from '${currentStatus}' to '${nextStatus}'. Allowed transitions: [${allowed?.join(", ") || "none"}]`,
       );
     }
 
@@ -65,10 +74,16 @@ export class ConsultationsService {
       notes?: string;
     } = {
       status: nextStatus,
-      notes: input.notes !== undefined ? input.notes : consultation.notes || undefined,
+      notes:
+        input.notes !== undefined
+          ? input.notes
+          : consultation.notes || undefined,
     };
 
-    if (nextStatus === ConsultationStatus.IN_PROGRESS && !consultation.actualStartTime) {
+    if (
+      nextStatus === ConsultationStatus.IN_PROGRESS &&
+      !consultation.actualStartTime
+    ) {
       data.actualStartTime = new Date();
     }
 
@@ -85,7 +100,7 @@ export class ConsultationsService {
       actorId: requestingUser.userId,
       actorRole: requestingUser.role,
       action: `CONSULTATION_STATUS_${nextStatus}`,
-      resourceType: 'Consultation',
+      resourceType: "Consultation",
       resourceId: consultationId,
       outcome: AuditOutcome.SUCCESS,
       ipAddress: clientIp,
@@ -97,11 +112,16 @@ export class ConsultationsService {
     return updated;
   }
 
-  async getConsultation(consultationId: string, requestingUser: { userId: string; role: UserRole }) {
+  async getConsultation(
+    consultationId: string,
+    requestingUser: { userId: string; role: UserRole },
+  ) {
     const consultation = await prisma.consultation.findUnique({
       where: { id: consultationId },
       include: {
-        doctor: { include: { user: { select: { email: true, profile: true } } } },
+        doctor: {
+          include: { user: { select: { email: true, profile: true } } },
+        },
         patient: { select: { id: true, email: true, profile: true } },
         slot: true,
         prescription: true,
@@ -110,7 +130,7 @@ export class ConsultationsService {
     });
 
     if (!consultation) {
-      throw new NotFoundError('Consultation', consultationId);
+      throw new NotFoundError("Consultation", consultationId);
     }
 
     // Object-level permission check
@@ -119,7 +139,9 @@ export class ConsultationsService {
     const isAdmin = requestingUser.role === UserRole.ADMIN;
 
     if (!isPatient && !isDoctor && !isAdmin) {
-      throw new ForbiddenError('You do not have permission to view this consultation');
+      throw new ForbiddenError(
+        "You do not have permission to view this consultation",
+      );
     }
 
     return consultation;

@@ -1,5 +1,5 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { authService, AuthService } from './auth.service.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import { authService, AuthService } from "./auth.service.js";
 import {
   registerUserSchema,
   loginUserSchema,
@@ -7,7 +7,7 @@ import {
   verifyMfaSchema,
   mfaLoginSchema,
   mfaRecoveryLoginSchema,
-} from './auth.schemas.js';
+} from "./auth.schemas.js";
 
 export class AuthController {
   constructor(private service: AuthService = authService) {}
@@ -17,13 +17,13 @@ export class AuthController {
     const result = await this.service.register(
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(201).send({
       success: true,
-      message: 'Account registered successfully',
+      message: "Account registered successfully",
       data: result,
       correlationId: request.correlationId,
     });
@@ -34,13 +34,15 @@ export class AuthController {
     const result = await this.service.login(
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(200).send({
       success: true,
-      message: result.mfaRequired ? 'MFA authentication challenge required' : 'Login successful',
+      message: result.mfaRequired
+        ? "MFA authentication challenge required"
+        : "Login successful",
       data: result,
       correlationId: request.correlationId,
     });
@@ -51,30 +53,33 @@ export class AuthController {
     const result = await this.service.verifyMfaLogin(
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(200).send({
       success: true,
-      message: 'MFA verification successful',
+      message: "MFA verification successful",
       data: result,
       correlationId: request.correlationId,
     });
   };
 
-  loginWithRecoveryCode = async (request: FastifyRequest, reply: FastifyReply) => {
+  loginWithRecoveryCode = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
     const input = mfaRecoveryLoginSchema.parse(request.body);
     const result = await this.service.loginWithRecoveryCode(
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(200).send({
       success: true,
-      message: 'Recovery code login successful',
+      message: "Recovery code login successful",
       data: result,
       correlationId: request.correlationId,
     });
@@ -86,7 +91,8 @@ export class AuthController {
 
     return reply.status(200).send({
       success: true,
-      message: 'MFA setup initiated. Scan QR code or enter secret into Authenticator app.',
+      message:
+        "MFA setup initiated. Scan QR code or enter secret into Authenticator app.",
       data: {
         secret: result.secretBase32,
         uri: result.uri,
@@ -103,7 +109,7 @@ export class AuthController {
 
     return reply.status(200).send({
       success: true,
-      message: 'MFA has been successfully verified and enabled on your account',
+      message: "MFA has been successfully verified and enabled on your account",
       data: { mfaEnabled: true },
       correlationId: request.correlationId,
     });
@@ -115,7 +121,7 @@ export class AuthController {
 
     return reply.status(200).send({
       success: true,
-      message: 'Tokens refreshed successfully',
+      message: "Tokens refreshed successfully",
       data: { tokens },
       correlationId: request.correlationId,
     });

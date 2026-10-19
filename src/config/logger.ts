@@ -1,5 +1,5 @@
-import pino from 'pino';
-import { env } from './environment.js';
+import pino from "pino";
+import { env } from "./environment.js";
 
 export const logger = pino({
   level: env.LOG_LEVEL,
@@ -9,29 +9,29 @@ export const logger = pino({
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: {
     paths: [
-      'req.headers.authorization',
+      "req.headers.authorization",
       'req.headers["x-idempotency-key"]',
-      'password',
-      'passwordHash',
-      'token',
-      'accessToken',
-      'refreshToken',
-      'mfaSecret',
-      'mfaRecoveryCodes',
-      'cardDetails',
-      'diagnosis',
-      'medications',
+      "password",
+      "passwordHash",
+      "token",
+      "accessToken",
+      "refreshToken",
+      "mfaSecret",
+      "mfaRecoveryCodes",
+      "cardDetails",
+      "diagnosis",
+      "medications",
     ],
-    censor: '[REDACTED]',
+    censor: "[REDACTED]",
   },
   transport:
-    env.NODE_ENV === 'development'
+    env.NODE_ENV === "development"
       ? {
-          target: 'pino-pretty',
+          target: "pino-pretty",
           options: {
             colorize: true,
-            translateTime: 'SYS:standard',
-            ignore: 'pid,hostname',
+            translateTime: "SYS:standard",
+            ignore: "pid,hostname",
           },
         }
       : undefined,

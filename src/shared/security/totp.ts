@@ -1,7 +1,7 @@
-import * as OTPAuth from 'otpauth';
-import crypto from 'crypto';
-import { env } from '../../config/environment.js';
-import { encryptData, decryptData } from './crypto.js';
+import * as OTPAuth from "otpauth";
+import crypto from "crypto";
+import { env } from "../../config/environment.js";
+import { encryptData, decryptData } from "./crypto.js";
 
 export interface GeneratedMfaSecret {
   secretBase32: string;
@@ -20,7 +20,7 @@ export function generateMfaSecret(email: string): GeneratedMfaSecret {
   const totp = new OTPAuth.TOTP({
     issuer: env.MFA_APP_NAME,
     label: email,
-    algorithm: 'SHA1',
+    algorithm: "SHA1",
     digits: 6,
     period: 30,
     secret: secret,
@@ -31,7 +31,7 @@ export function generateMfaSecret(email: string): GeneratedMfaSecret {
 
   // Generate 8 alphanumeric recovery codes (8 chars each)
   const recoveryCodes = Array.from({ length: 8 }, () =>
-    crypto.randomBytes(4).toString('hex').toUpperCase()
+    crypto.randomBytes(4).toString("hex").toUpperCase(),
   );
 
   return {
@@ -45,12 +45,15 @@ export function generateMfaSecret(email: string): GeneratedMfaSecret {
 /**
  * Validates a user-supplied 6-digit TOTP token against the encrypted secret
  */
-export function verifyMfaToken(token: string, encryptedSecret: string): boolean {
+export function verifyMfaToken(
+  token: string,
+  encryptedSecret: string,
+): boolean {
   try {
     const secretBase32 = decryptData(encryptedSecret, env.MFA_ENCRYPTION_KEY);
     const totp = new OTPAuth.TOTP({
       issuer: env.MFA_APP_NAME,
-      algorithm: 'SHA1',
+      algorithm: "SHA1",
       digits: 6,
       period: 30,
       secret: OTPAuth.Secret.fromBase32(secretBase32),

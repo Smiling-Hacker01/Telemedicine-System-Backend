@@ -1,14 +1,14 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { consultationsService, ConsultationsService } from './consultations.service.js';
-import { updateConsultationStatusSchema } from './consultations.schemas.js';
+import { FastifyRequest, FastifyReply } from "fastify";
+import {
+  consultationsService,
+  ConsultationsService,
+} from "./consultations.service.js";
+import { updateConsultationStatusSchema } from "./consultations.schemas.js";
 
 export class ConsultationsController {
   constructor(private service: ConsultationsService = consultationsService) {}
 
-  updateStatus = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ) => {
+  updateStatus = async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const input = updateConsultationStatusSchema.parse(request.body);
     const updated = await this.service.updateStatus(
@@ -19,8 +19,8 @@ export class ConsultationsController {
       },
       input,
       request.ip,
-      request.headers['user-agent'],
-      request.correlationId
+      request.headers["user-agent"],
+      request.correlationId,
     );
 
     return reply.status(200).send({
@@ -31,10 +31,7 @@ export class ConsultationsController {
     });
   };
 
-  getConsultation = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ) => {
+  getConsultation = async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const consultation = await this.service.getConsultation(id, {
       userId: request.user!.userId,
