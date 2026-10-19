@@ -22,9 +22,46 @@ env:
   PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
 
 jobs:
+  enforce-branch-rules:
+    name: Enforce Branch Promotion Rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Source and Target Branches
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Direct push event detected. Skipping PR target branch validation."
+            exit 0
+          fi
+
+          TARGET_BRANCH="${{ github.base_ref }}"
+          SOURCE_BRANCH="${{ github.head_ref }}"
+
+          echo "Evaluating Pull Request: $SOURCE_BRANCH -> $TARGET_BRANCH"
+
+          # Rule 1: No branch except 'staging' can be merged into 'main'
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            if [ "$SOURCE_BRANCH" != "staging" ]; then
+              echo "::error::[POLICY VIOLATION] Direct merge into 'main' blocked. Only 'staging' branch is permitted to merge into 'main'. Received source branch: '$SOURCE_BRANCH'."
+              exit 1
+            fi
+            echo "Branch policy passed: '$SOURCE_BRANCH' is authorized to merge into 'main'."
+          fi
+
+          # Rule 2: No branch except 'deploy' can be merged into 'staging'
+          if [ "$TARGET_BRANCH" = "staging" ]; then
+            if [ "$SOURCE_BRANCH" != "deploy" ]; then
+              echo "::error::[POLICY VIOLATION] Direct merge into 'staging' blocked. Only 'deploy' branch is permitted to merge into 'staging'. Received source branch: '$SOURCE_BRANCH'."
+              exit 1
+            fi
+            echo "Branch policy passed: '$SOURCE_BRANCH' is authorized to merge into 'staging'."
+          fi
+
+          echo "Branch promotion policy check passed successfully."
+
   typecheck-and-lint:
     name: Strict Typecheck & Code Hygiene
     runs-on: ubuntu-latest
+    needs: [enforce-branch-rules]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

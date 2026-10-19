@@ -29,11 +29,18 @@ The Amrutam engineering workflow enforces continuous integration quality gates o
 
 ```mermaid
 graph LR
-    PushPR[Pull Request / Push] --> Stage1[1. Strict Typecheck & Format]
+    PushPR[Pull Request / Push] --> Stage0[0. Enforce Branch Promotion Rules]
+    Stage0 --> Stage1[1. Strict Typecheck & Format]
     Stage1 --> Stage2[2. Integration Tests & DB Migrations]
     Stage2 --> Stage3[3. Docker Image Build Verification]
     Stage3 --> MergeReady[Quality Gate Passed: Merge Allowed]
 ```
+
+### Stage 0: Enforce Branch Promotion Rules (`enforce-branch-rules`)
+- Validates the base and head branch of every pull request:
+  - **`main` Target:** Strictly requires source branch to be `staging`. Fails with error if any other branch targets `main`.
+  - **`staging` Target:** Strictly requires source branch to be `deploy`. Fails with error if any other branch targets `staging`.
+- Prevents bypasses by running as the first required status check before downstream jobs execute.
 
 ### Stage 1: Strict Typecheck & Code Hygiene (`typecheck-and-lint`)
 - Runs `npx prisma generate` to build Prisma client types.
@@ -51,6 +58,7 @@ graph LR
   - Concurrency Tests (`SELECT ... FOR UPDATE` race-condition verification)
   - Security & BOLA Tests
   - Contract & Observability Tests
+- **Blocking Gate:** If any test fails or coverage drops below thresholds, the step exits with code 1, immediately failing the status check and blocking merge.
 - Uploads test coverage artifact (`coverage/`).
 
 ### Stage 3: Container Build Verification (`docker-build`)
@@ -59,24 +67,35 @@ graph LR
 
 ---
 
-## 2. GitHub Branch Protection Rules for `main`
+## 3. GitHub Branch Protection Rules
 
-To prevent regressions, unauthorized code changes, or direct pushes to `main`, configure the following GitHub repository settings under **Settings > Branches > Branch protection rules > Add rule**:
+To enforce that merges are blocked if any test fails and that only the designated promotion branch can be merged, configure the following rules under **Settings > Branches > Branch protection rules**:
 
-### Branch Pattern: `main`
+### Rule 1: Production Branch (`main`)
+- **Target:** `main`
+- **Allowed Source Branch:** Strictly `staging` (enforced via `enforce-branch-rules` check)
+- **Require a pull request before merging:** Enabled (1 review required)
+- **Dismiss stale pull request approvals:** Enabled
+- **Require status checks to pass before merging:** Enabled
+  - `Enforce Branch Promotion Rules`
+  - `Strict Typecheck & Code Hygiene`
+  - `Automated Test Suite & Coverage Gates`
+  - `Container Build Verification`
+- **Require branches to be up to date before merging:** Enabled
+- **Require linear history:** Enabled (Squash or Rebase merge)
+- **Do not allow bypassing the above settings:** Enabled
+- **Allow force pushes:** Disabled
 
-| Setting | Configuration Value | Rationale |
-| :--- | :--- | :--- |
-| **Require a pull request before merging** | **Enabled** | Prevents direct pushes to production branch. All changes must enter via a reviewed PR. |
-| **Require approvals** | **1 approval minimum** | Enforces peer code review standards. |
-| **Dismiss stale pull request approvals when new commits are pushed** | **Enabled** | Re-triggers review if the PR author pushes additional changes after receiving approval. |
-| **Require status checks to pass before merging** | **Enabled** | Guarantees code builds and passes all tests before merge is unlocked. |
-| **Status checks that are required** | - `Strict Typecheck & Code Hygiene`<br>- `Automated Test Suite & Coverage Gates`<br>- `Container Build Verification` | Blocks merging if any CI job fails. |
-| **Require branches to be up to date before merging** | **Enabled** | Ensures code is tested against the latest `main` commit. |
-| **Require linear history** | **Enabled** | Keeps Git history clean and bisectable (Squash & Merge or Rebase). |
-| **Do not allow bypassing the above settings** | **Enabled** | Enforces rules even for repository administrators. |
-| **Allow force pushes** | **Disabled** | Prevents history rewrites or accidental deletion of `main`. |
-| **Allow deletions** | **Disabled** | Prevents deletion of the production `main` branch. |
+### Rule 2: Staging Branch (`staging`)
+- **Target:** `staging`
+- **Allowed Source Branch:** Strictly `deploy` (enforced via `enforce-branch-rules` check)
+- **Require a pull request before merging:** Enabled
+- **Require status checks to pass before merging:** Enabled
+  - `Enforce Branch Promotion Rules`
+  - `Strict Typecheck & Code Hygiene`
+  - `Automated Test Suite & Coverage Gates`
+  - `Container Build Verification`
+- **Allow force pushes:** Disabled
 
 ---
 
