@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: amrutam_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: amrutam_user
+      POSTGRES_PASSWORD: amrutam_secure_pass
+      POSTGRES_DB: amrutam_telemedicine
+    ports:
+      - "5434:5432"
+    volumes:
+      - amrutam_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amrutam_user -d amrutam_telemedicine"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: amrutam_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - amrutam_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amrutam_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@postgres:5432/amrutam_telemedicine?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: prod_access_secret_min_32_characters_amrutam_telemed
+      JWT_REFRESH_SECRET: prod_refresh_secret_min_32_characters_amrutam_telemed
+      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      PAYMENT_WEBHOOK_SECRET: whsec_production_secret_32_characters_amrutam
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  amrutam_postgres_data:
+  amrutam_redis_data:
