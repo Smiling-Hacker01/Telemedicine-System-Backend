@@ -15,6 +15,11 @@ COPY prisma ./prisma/
 RUN npm ci
 
 COPY src ./src/
+
+# Build argument for Prisma Client type generation supplied by environment/build context
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+
 RUN npx prisma generate
 RUN npm run build
 
@@ -39,9 +44,6 @@ COPY prisma.config.ts ./
 COPY prisma ./prisma/
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-
-# Generate client in runner
-RUN npx prisma generate
 
 USER amrutam
 

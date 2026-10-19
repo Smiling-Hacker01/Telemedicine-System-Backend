@@ -2,26 +2,66 @@ name: CI / CD Quality Pipeline
 
 on:
   push:
-    branches: [main, develop, 'feature/**', 'fix/**']
+    branches: [main, develop, deploy, staging, 'feature/**', 'fix/**']
   pull_request:
-    branches: [main]
+    branches: [main, deploy, staging, 'feature/**']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Top-level workflow environment variables injected into all runner jobs
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_test?schema=public
+  REDIS_URL: redis://localhost:6380
+  JWT_ACCESS_SECRET: ci_test_jwt_access_secret_minimum_32_characters_long
+  JWT_REFRESH_SECRET: ci_test_jwt_refresh_secret_minimum_32_characters_long
+  MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
+
 jobs:
+  enforce-branch-rules:
+    name: Enforce Branch Promotion Rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Source and Target Branches
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Direct push event detected. Skipping PR target branch validation."
+            exit 0
+          fi
+
+          TARGET_BRANCH="${{ github.base_ref }}"
+          SOURCE_BRANCH="${{ github.head_ref }}"
+
+          echo "Evaluating Pull Request: $SOURCE_BRANCH -> $TARGET_BRANCH"
+
+          # Rule 1: No branch except 'staging' can be merged into 'main'
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            if [ "$SOURCE_BRANCH" != "staging" ]; then
+              echo "::error::[POLICY VIOLATION] Direct merge into 'main' blocked. Only 'staging' branch is permitted to merge into 'main'. Received source branch: '$SOURCE_BRANCH'."
+              exit 1
+            fi
+            echo "Branch policy passed: '$SOURCE_BRANCH' is authorized to merge into 'main'."
+          fi
+
+          # Rule 2: No branch except 'deploy' can be merged into 'staging'
+          if [ "$TARGET_BRANCH" = "staging" ]; then
+            if [ "$SOURCE_BRANCH" != "deploy" ]; then
+              echo "::error::[POLICY VIOLATION] Direct merge into 'staging' blocked. Only 'deploy' branch is permitted to merge into 'staging'. Received source branch: '$SOURCE_BRANCH'."
+              exit 1
+            fi
+            echo "Branch policy passed: '$SOURCE_BRANCH' is authorized to merge into 'staging'."
+          fi
+
+          echo "Branch promotion policy check passed successfully."
+
   typecheck-and-lint:
     name: Strict Typecheck & Code Hygiene
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_telemedicine?schema=public
-      JWT_ACCESS_SECRET: ci_typecheck_secret_min_32_characters_long
-      JWT_REFRESH_SECRET: ci_typecheck_secret_min_32_characters_long
-      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
-
+    needs: [enforce-branch-rules]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -74,16 +114,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      NODE_ENV: test
-      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_test?schema=public
-      REDIS_URL: redis://localhost:6380
-      JWT_ACCESS_SECRET: ci_test_jwt_access_secret_minimum_32_characters_long
-      JWT_REFRESH_SECRET: ci_test_jwt_refresh_secret_minimum_32_characters_long
-      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -131,5 +161,7 @@ jobs:
           context: .
           push: false
           tags: amrutam-backend:latest
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

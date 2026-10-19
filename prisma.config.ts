@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { defineConfig } from "prisma/config";
+import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -8,8 +8,6 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url:
-      process.env.DATABASE_URL ||
-      "postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_telemedicine?schema=public",
+    url: env("DATABASE_URL"),
   },
 });
