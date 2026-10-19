@@ -38,6 +38,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
     container_name: amrutam_backend
     restart: always
     ports:

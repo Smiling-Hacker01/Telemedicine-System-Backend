@@ -10,18 +10,21 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Top-level workflow environment variables injected into all runner jobs
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_test?schema=public
+  REDIS_URL: redis://localhost:6380
+  JWT_ACCESS_SECRET: ci_test_jwt_access_secret_minimum_32_characters_long
+  JWT_REFRESH_SECRET: ci_test_jwt_refresh_secret_minimum_32_characters_long
+  MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
+
 jobs:
   typecheck-and-lint:
     name: Strict Typecheck & Code Hygiene
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_telemedicine?schema=public
-      JWT_ACCESS_SECRET: ci_typecheck_secret_min_32_characters_long
-      JWT_REFRESH_SECRET: ci_typecheck_secret_min_32_characters_long
-      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -74,16 +77,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      NODE_ENV: test
-      DATABASE_URL: postgresql://amrutam_user:amrutam_secure_pass@localhost:5434/amrutam_test?schema=public
-      REDIS_URL: redis://localhost:6380
-      JWT_ACCESS_SECRET: ci_test_jwt_access_secret_minimum_32_characters_long
-      JWT_REFRESH_SECRET: ci_test_jwt_refresh_secret_minimum_32_characters_long
-      MFA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      PAYMENT_WEBHOOK_SECRET: whsec_ci_test_secret_32_characters_minimum_length
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -131,5 +124,7 @@ jobs:
           context: .
           push: false
           tags: amrutam-backend:latest
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

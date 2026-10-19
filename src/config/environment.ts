@@ -26,7 +26,7 @@ const environmentSchema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().default(50),
 
   // Redis
-  REDIS_URL: z.string().url().default("redis://localhost:6380"),
+  REDIS_URL: z.string().url(),
   REDIS_KEY_PREFIX: z.string().default("amrutam:"),
   CACHE_DEFAULT_TTL_SEC: z.coerce.number().default(300),
 
