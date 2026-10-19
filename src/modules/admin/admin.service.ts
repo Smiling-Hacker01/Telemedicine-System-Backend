@@ -42,9 +42,6 @@ export class AdminService {
         orderBy: { createdAt: "desc" },
         include: {
           patient: { select: { email: true, profile: true } },
-          doctor: {
-            include: { user: { select: { email: true, profile: true } } },
-          },
           payment: true,
         },
       }),
